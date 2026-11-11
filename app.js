@@ -50,6 +50,8 @@ function render(reset=true){
  $('count').textContent=`พบ ${filtered.length.toLocaleString('th-TH')} บริษัท จากทั้งหมด ${records.length.toLocaleString('th-TH')} บริษัท`;
  $('shown').textContent=filtered.length?`แสดง ${Math.min(limit,filtered.length)} จาก ${filtered.length} บริษัท`:'';
  $('empty').hidden=filtered.length!==0;$('load-more').hidden=limit>=filtered.length;$('clear-search').hidden=!$('search').value;
+ $('export-excel').disabled=filtered.length===0;
+ $('export-status').textContent='';
  $('total-vendors').textContent=records.length.toLocaleString('th-TH');
  const params=new URLSearchParams();fields.forEach(id=>{if($(id).value&&$(id).value!=='original')params.set(id,$(id).value)});
  try{history.replaceState(null,'',location.pathname+(params.size?'?'+params.toString():'')+location.hash)}catch{}
@@ -61,3 +63,25 @@ $('reset').addEventListener('click',reset);$('empty-reset').addEventListener('cl
 $('clear-search').addEventListener('click',()=>{$('search').value='';render();$('search').focus()});
 $('load-more').addEventListener('click',()=>{limit+=24;render(false)});
 window.addEventListener('pageshow',()=>render());render();
+
+$('export-excel').addEventListener('click',()=>{
+ if(!filtered.length)return;
+ const button=$('export-excel');button.disabled=true;
+ try{
+  const province=$('province').value||'ทุกจังหวัด';
+  const stamp=new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Bangkok',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
+  const selectedLabel=id=>{const select=$(id);return select.options[select.selectedIndex]?.textContent||select.value;};
+  ExcelExport.download(filtered,{
+   'วันที่ส่งออก':stamp,'วันที่ข้อมูลต้นทาง':DIRECTORY_META.updatedAt,'จำนวนบริษัท':filtered.length,
+   'จังหวัดที่ต้องการติดตั้ง':province,'แหล่งข้อมูล':selectedLabel('source'),
+   'คำค้น':$('search').value||'ทั้งหมด','ประเภทนิติบุคคล':selectedLabel('type'),
+   'ช่องทางติดต่อ':selectedLabel('channel'),'เรียงตาม':selectedLabel('sort'),
+   'ขอบเขตข้อมูล':'ส่งออกทุกรายการที่ตรงกับตัวกรอง รวมรายการที่ยังไม่กดแสดงเพิ่มเติม',
+   'แหล่งข้อมูล PEA':DIRECTORY_META.peaSource,'แหล่งข้อมูล MEA':'ชุดข้อมูลที่ผู้ใช้รวบรวม',
+   'หมายเหตุ':'พื้นที่ให้บริการแยกจากที่อยู่บริษัท ข้อมูลติดต่อเลือกตามแหล่งข้อมูลและจังหวัดที่กรอง'
+  },`ผู้ให้บริการโซลาร์_${province}_${stamp}.xlsx`);
+  $('export-status').textContent=`ส่งออก ${filtered.length.toLocaleString('th-TH')} บริษัทแล้ว`;
+ }catch(error){
+  $('export-status').textContent='ส่งออกไม่สำเร็จ กรุณาลองอีกครั้ง';console.error('Excel export failed',error);
+ }finally{button.disabled=filtered.length===0;}
+});
