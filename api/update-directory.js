@@ -40,7 +40,7 @@ async function handler(req,res){
    result={data,total:payload.total,pageSize:payload.pageSize,pages:Math.ceil(payload.total/payload.pageSize)};
   }
   return res.status(200).json({...result,page,source,updatedAt:new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Bangkok',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date())});
- }catch(error){console.error('Directory upstream update failed:',error.message);return res.status(502).json({error:'โหลดข้อมูลต้นทางไม่สำเร็จ กรุณาลองอีกครั้งภายหลัง',failure:error.message==='PEA เปลี่ยนรูปแบบข้อมูล'?'invalid_pea_data':/^ต้นทางตอบกลับ (403|429|500|502|503|504)$/.test(error.message)?'upstream_http_'+error.message.slice(-3):['UNABLE_TO_VERIFY_LEAF_SIGNATURE','UNABLE_TO_GET_ISSUER_CERT_LOCALLY','CERT_HAS_EXPIRED'].includes(error.cause?.code)?'upstream_tls':'upstream_unavailable'});}
+ }catch(error){console.error('Directory upstream update failed:',error.message);return res.status(502).json({error:'โหลดข้อมูลต้นทางไม่สำเร็จ กรุณาลองอีกครั้งภายหลัง',failure:error.message==='PEA ส่งข้อมูลไม่ครบ'?'invalid_pea_response':error instanceof SyntaxError?'invalid_json':error.name==='TimeoutError'?'upstream_timeout':['ENOTFOUND','ECONNRESET','ETIMEDOUT','UND_ERR_CONNECT_TIMEOUT','ERR_TLS_CERT_ALTNAME_INVALID','UNABLE_TO_GET_ISSUER_CERT','CERT_UNTRUSTED'].includes(error.cause?.code)?error.cause.code:error.message==='PEA เปลี่ยนรูปแบบข้อมูล'?'invalid_pea_data':/^ต้นทางตอบกลับ (403|429|500|502|503|504)$/.test(error.message)?'upstream_http_'+error.message.slice(-3):['UNABLE_TO_VERIFY_LEAF_SIGNATURE','UNABLE_TO_GET_ISSUER_CERT_LOCALLY','CERT_HAS_EXPIRED'].includes(error.cause?.code)?'upstream_tls':'upstream_unavailable'});}
 }
 module.exports=handler;
 module.exports.parseMEA=parseMEA;
