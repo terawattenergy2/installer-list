@@ -16,7 +16,7 @@ function parseMEA(html){
  return {data,total,pageSize:20,pages:Math.ceil(total/20),snapshot};
 }
 async function upstream(url){
- const response=await fetch(url,{headers:{Accept:'application/json, text/html'},signal:AbortSignal.timeout(25000),cache:'no-store'});
+ const response=await fetch(url,{headers:{Accept:url.includes('peoplesolar.pea.co.th')?'application/json':'text/html','User-Agent':'Mozilla/5.0 (compatible; InstallerDirectory/1.0; +https://installer-list.vercel.app/)','Accept-Language':'th-TH,th;q=0.9'},signal:AbortSignal.timeout(25000),cache:'no-store'});
  if(!response.ok)throw Error('ต้นทางตอบกลับ '+response.status);
  return response;
 }
