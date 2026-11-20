@@ -8,19 +8,21 @@ const dial = raw => {
  const parts=String(raw).split(/\s*(?:ต่อ|ext\.?)\s*/i);
  return parts[0].replace(/[^+\d]/g,'')+(parts[1]?';ext='+parts[1].replace(/\D/g,''):'');
 };
-const records = VENDORS;
+let records = VENDORS;
+const cached=ManualUpdate.restore();
+if(cached){records=cached.records;Object.assign(DIRECTORY_META,cached.meta);}
 let limit=24, filtered=[];
 function applicable(v,province='',source='') {
  return v.sourceRecords.filter(r=>(!source||r.source===source)&&(!province||r.serviceAreas.includes(province))&&r.serviceAreas.length);
 }
-for(const p of DIRECTORY_META.provinces){
- const o=document.createElement('option');o.value=p;
- o.textContent=`${p} (${records.filter(v=>applicable(v,p).length).length})`;
- $('province').append(o);
+function refreshOptions(){
+ const province=$('province'),type=$('type'),oldProvince=province.value,oldType=type.value;
+ province.innerHTML='<option value="">ทุกจังหวัด</option>';type.innerHTML='<option value="">ทุกประเภท</option>';
+ for(const p of DIRECTORY_META.provinces){const o=document.createElement('option');o.value=p;o.textContent=`${p} (${records.filter(v=>applicable(v,p).length).length})`;province.append(o);}
+ for(const value of unique(records.map(v=>v.type)).sort((a,b)=>a.localeCompare(b,'th'))){const o=document.createElement('option');o.value=value;o.textContent=value;type.append(o);}
+ province.value=oldProvince;type.value=oldType;
 }
-for(const type of unique(records.map(v=>v.type)).sort((a,b)=>a.localeCompare(b,'th'))){
- const o=document.createElement('option');o.value=type;o.textContent=type;$('type').append(o);
-}
+refreshOptions();
 function matching(){
  const tokens=normalize($('search').value).split(' ').filter(Boolean);
  return records.flatMap(v=>{
@@ -54,6 +56,7 @@ function render(reset=true){
  $('empty').hidden=filtered.length!==0;$('load-more').hidden=limit>=filtered.length;$('clear-search').hidden=!$('search').value;
  $('export-excel').disabled=filtered.length===0;
  $('export-status').textContent='';
+ $('data-dates').textContent=`ข้อมูลที่ใช้งาน: PEA ${DIRECTORY_META.peaUpdatedAt} · MEA ${DIRECTORY_META.meaUpdatedAt}`;
  $('total-vendors').textContent=records.length.toLocaleString('th-TH');
  const params=new URLSearchParams();fields.forEach(id=>{if($(id).value&&$(id).value!=='original')params.set(id,$(id).value)});
  try{history.replaceState(null,'',location.pathname+(params.size?'?'+params.toString():'')+location.hash)}catch{}
@@ -79,11 +82,31 @@ $('export-excel').addEventListener('click',()=>{
    'คำค้น':$('search').value||'ทั้งหมด','ประเภทนิติบุคคล':selectedLabel('type'),
    'ช่องทางติดต่อ':selectedLabel('channel'),'เรียงตาม':selectedLabel('sort'),
    'ขอบเขตข้อมูล':'ส่งออกทุกรายการที่ตรงกับตัวกรอง รวมรายการที่ยังไม่กดแสดงเพิ่มเติม',
-   'แหล่งข้อมูล PEA':DIRECTORY_META.peaSource,'แหล่งข้อมูล MEA':'ชุดข้อมูลที่ผู้ใช้รวบรวม',
+   'แหล่งข้อมูล PEA':DIRECTORY_META.peaSource,'แหล่งข้อมูล MEA':DIRECTORY_META.meaSource||'ชุดข้อมูลที่ผู้ใช้รวบรวม',
    'หมายเหตุ':'พื้นที่ให้บริการแยกจากที่อยู่บริษัท ข้อมูลติดต่อเลือกตามแหล่งข้อมูลและจังหวัดที่กรอง จำนวนผู้สนใจเป็นยอดรวมของบริษัทจาก PEA ไม่ใช่ยอดแยกจังหวัด และไม่มีรายชื่อบุคคล; ช่องว่างหมายถึงไม่มีข้อมูลจากแหล่งที่เลือก'
   },`ผู้ให้บริการโซลาร์_${province}_${stamp}.xlsx`);
   $('export-status').textContent=`ส่งออก ${filtered.length.toLocaleString('th-TH')} บริษัทแล้ว`;
  }catch(error){
   $('export-status').textContent='ส่งออกไม่สำเร็จ กรุณาลองอีกครั้ง';console.error('Excel export failed',error);
  }finally{button.disabled=filtered.length===0;}
+});
+
+let updateRunning=false;
+$('update-data').addEventListener('click',async()=>{
+ if(updateRunning)return;
+ updateRunning=true;const button=$('update-data');button.disabled=true;button.setAttribute('aria-busy','true');
+ const status=$('update-status');
+ try{
+  const source=$('update-source').value,sources=source==='both'?['PEA','MEA']:[source],replacements={},dates={};
+  for(const name of sources){
+   const result=await ManualUpdate.fetchSource(name,(s,done,total)=>{status.textContent=`กำลังอัปเดต ${s} หน้า ${done}/${total}…`;});
+   replacements[name]=result.data;dates[name==='PEA'?'peaUpdatedAt':'meaUpdatedAt']=result.date;
+  }
+  const next=ManualUpdate.merge(records,replacements,{...DIRECTORY_META,...dates});
+  next.meta.updatedAt=[next.meta.peaUpdatedAt,next.meta.meaUpdatedAt].sort().at(-1);
+  try{ManualUpdate.persist(next);}catch{throw Error('เบราว์เซอร์บันทึกข้อมูลไม่ได้ กรุณาตรวจพื้นที่จัดเก็บหรือการตั้งค่าความเป็นส่วนตัว');}
+  records=next.records;Object.assign(DIRECTORY_META,next.meta);refreshOptions();render();
+  status.textContent=`อัปเดต ${sources.join(' และ ')} สำเร็จ · PEA ${DIRECTORY_META.peaRecords} รายการ · MEA ${DIRECTORY_META.meaRecords} รายการ · รวม ${records.length} บริษัทไม่ซ้ำ — บันทึกในเบราว์เซอร์นี้แล้ว`;
+ }catch(error){status.textContent=`อัปเดตไม่สำเร็จ: ${error.message} ข้อมูลเดิมยังอยู่`;}
+ finally{updateRunning=false;button.disabled=false;button.removeAttribute('aria-busy');}
 });
