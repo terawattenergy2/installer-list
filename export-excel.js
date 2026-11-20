@@ -31,8 +31,8 @@ const ExcelExport = (() => {
   }).join('')}</sheetData>${filter?`<autoFilter ref="A1:${end}"/>`:''}</worksheet>`;
  }
  function build(rows,context){
-  const headers=['ลำดับ','ชื่อผู้ให้บริการ','เลขผู้เสียภาษี','แหล่งข้อมูล','เลขทะเบียนผู้ให้บริการ','ประเภทนิติบุคคล','ผู้ติดต่อ','โทรศัพท์','อีเมล','จังหวัดที่จดทะเบียน','ที่อยู่จดทะเบียน','จำนวนจังหวัดที่ให้บริการ','พื้นที่ให้บริการ'];
-  const values=rows.map((v,i)=>[i+1,v.name,v.registration,v.sources.join(' / '),v.selected.map(r=>r.source+': '+r.id).join(' / '),v.type,v.contacts.join(' / '),v.phones.map(p=>p.label).join(' / '),v.emails.join(' / '),v.province,v.address,v.serviceAreas.length,v.serviceAreas.join(', ')]);
+  const headers=['ลำดับ','ชื่อผู้ให้บริการ','เลขผู้เสียภาษี','แหล่งข้อมูล','เลขทะเบียนผู้ให้บริการ','ประเภทนิติบุคคล','ผู้ติดต่อ','โทรศัพท์','อีเมล','จังหวัดที่จดทะเบียน','ที่อยู่จดทะเบียน','จำนวนจังหวัดที่ให้บริการ','พื้นที่ให้บริการ','จำนวนผู้สนใจ (PEA)'];
+  const values=rows.map((v,i)=>[i+1,v.name,v.registration,v.sources.join(' / '),v.selected.map(r=>r.source+': '+r.id).join(' / '),v.type,v.contacts.join(' / '),v.phones.map(p=>p.label).join(' / '),v.emails.join(' / '),v.province,v.address,v.serviceAreas.length,v.serviceAreas.join(', '),v.selectionCount??'']);
   const information=[['รายการ','รายละเอียด'],...Object.entries(context)];
   const ns='http://schemas.openxmlformats.org/spreadsheetml/2006/main';
   return zip({
@@ -41,7 +41,7 @@ const ExcelExport = (() => {
    'xl/workbook.xml':`<?xml version="1.0" encoding="UTF-8"?><workbook xmlns="${ns}" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="ผู้ให้บริการ" sheetId="1" r:id="rId1"/><sheet name="เงื่อนไขการส่งออก" sheetId="2" r:id="rId2"/></sheets></workbook>`,
    'xl/_rels/workbook.xml.rels':'<?xml version="1.0"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet2.xml"/><Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>',
    'xl/styles.xml':`<?xml version="1.0"?><styleSheet xmlns="${ns}"><fonts count="2"><font><sz val="11"/><name val="Tahoma"/></font><font><b/><color rgb="FFFFFFFF"/><sz val="11"/><name val="Tahoma"/></font></fonts><fills count="3"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FF123F36"/><bgColor indexed="64"/></patternFill></fill></fills><borders count="1"><border/></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="3"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="2" borderId="0" xfId="0" applyAlignment="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0" applyAlignment="1"><alignment vertical="top" wrapText="1"/></xf></cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>`,
-   'xl/worksheets/sheet1.xml':sheet([headers,...values],[8,48,22,16,30,23,35,32,45,24,70,20,90],true),
+   'xl/worksheets/sheet1.xml':sheet([headers,...values],[8,48,22,16,30,23,35,32,45,24,70,20,90,24],true),
    'xl/worksheets/sheet2.xml':sheet(information,[30,100])
   });
  }
